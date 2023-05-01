@@ -121,6 +121,54 @@ func GeneratePrimeNum(k int, ch chan *big.Int, wg *sync.WaitGroup) {
 	}
 }
 
+func ExtendedEuclideanAlgorithm(xCopy, yCopy *big.Int) (m, a, b *big.Int, err error) {
+	x := new(big.Int).Set(xCopy)
+	y := new(big.Int).Set(yCopy)
+	module := new(big.Int).Set(yCopy)
+
+	tmp := big.NewInt(0)
+	if x.Cmp(y) == -1 {
+		tmp.Set(x) // tmp = x
+		x.Set(y)   // x = y
+		y.Set(tmp) // y = tmp
+	}
+	if x.Cmp(big.NewInt(1)) == -1 || y.Cmp(big.NewInt(1)) == -1 {
+		err = fmt.Errorf("rsa/ExtendedEuclideanAlgorithm: %v", "")
+	}
+
+	m = big.NewInt(0)
+	a = big.NewInt(0)
+	b = big.NewInt(0)
+
+	a1 := big.NewInt(0)
+	a2 := big.NewInt(1)
+	b1 := big.NewInt(1)
+	b2 := big.NewInt(0)
+
+	q := big.NewInt(0)
+	r := big.NewInt(0)
+
+	for y.Cmp(big.NewInt(0)) != 0 {
+		q.Div(x, y)
+		r.Sub(x, tmp.Mul(q, y))
+		a.Sub(a2, tmp.Mul(q, a1))
+		b.Sub(b2, tmp.Mul(q, b1))
+
+		x.Set(y)
+		y.Set(r)
+		a2.Set(a1)
+		a1.Set(a)
+		b2.Set(b1)
+		b1.Set(b)
+	}
+
+	m.Set(x)
+	a.Mod(a2, module)
+	b.Mod(b2, module)
+
+	return
+}
+
 func GenerateKeyPair(keyBitLen int) (pub *PublicKey, priv *PrivateKey, err error) {
 	firstStep := true
 	for firstStep {
@@ -147,8 +195,11 @@ func GenerateKeyPair(keyBitLen int) (pub *PublicKey, priv *PrivateKey, err error
 		phiN := new(big.Int).Mul(pMinusOne, qMinusOne)
 		e := big.NewInt(65537)
 
-		d := new(big.Int).ModInverse(e, phiN)
-		if d == nil {
+		m, _, d, err := ExtendedEuclideanAlgorithm(e, phiN)
+		if err != nil {
+			return nil, nil, fmt.Errorf("rsa/GenerateKeyPair: %v", err)
+		}
+		if m.Cmp(big.NewInt(1)) != 0 {
 			continue
 		}
 		if d.BitLen() != keyBitLen {
