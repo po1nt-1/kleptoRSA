@@ -169,7 +169,7 @@ func ExtendedEuclideanAlgorithm(xCopy, yCopy *big.Int) (m, a, b *big.Int, err er
 	return
 }
 
-func GenerateKeyPair(keyBitLen int) (pub *PublicKey, priv *PrivateKey, err error) {
+func GenerateKeyPair(keyBitLen int) (err error) {
 	firstStep := true
 	for firstStep {
 		ch := make(chan *big.Int, 2)
@@ -197,7 +197,7 @@ func GenerateKeyPair(keyBitLen int) (pub *PublicKey, priv *PrivateKey, err error
 
 		m, _, d, err := ExtendedEuclideanAlgorithm(e, phiN)
 		if err != nil {
-			return nil, nil, fmt.Errorf("rsa/GenerateKeyPair: %v", err)
+			return fmt.Errorf("rsa/GenerateKeyPair: %v", err)
 		}
 		if m.Cmp(big.NewInt(1)) != 0 {
 			continue
@@ -206,7 +206,7 @@ func GenerateKeyPair(keyBitLen int) (pub *PublicKey, priv *PrivateKey, err error
 			continue
 		}
 
-		pub = &PublicKey{
+		pub := &PublicKey{
 			SubjectPublicKeyInfo: SubjectPublicKeyInfo{
 				N:              N,
 				PublicExponent: e,
@@ -215,7 +215,7 @@ func GenerateKeyPair(keyBitLen int) (pub *PublicKey, priv *PrivateKey, err error
 			Certificate:        "",
 			PKCS7CertChainPKCS: "",
 		}
-		priv = &PrivateKey{
+		priv := &PrivateKey{
 			PrivateExponent: d,
 			Prime1:          p,
 			Prime2:          q,
@@ -226,23 +226,47 @@ func GenerateKeyPair(keyBitLen int) (pub *PublicKey, priv *PrivateKey, err error
 
 		bKey, err := json.MarshalIndent(pub, "", "  ")
 		if err != nil {
-			return nil, nil, fmt.Errorf("rsa/GenerateKeyPair: %v", err)
+			return fmt.Errorf("rsa/GenerateKeyPair: %v", err)
 		}
 		err = storage.Dump(bKey, fmt.Sprintf("publicKey%d.json", keyBitLen))
 		if err != nil {
-			return nil, nil, fmt.Errorf("rsa/GenerateKeyPair: %v", err)
+			return fmt.Errorf("rsa/GenerateKeyPair: %v", err)
 		}
 		bKey, err = json.MarshalIndent(priv, "", "  ")
 		if err != nil {
-			return nil, nil, fmt.Errorf("rsa/GenerateKeyPair: %v", err)
+			return fmt.Errorf("rsa/GenerateKeyPair: %v", err)
 		}
 		err = storage.Dump(bKey, fmt.Sprintf("privateKey%d.json", keyBitLen))
 		if err != nil {
-			return nil, nil, fmt.Errorf("rsa/GenerateKeyPair: %v", err)
+			return fmt.Errorf("rsa/GenerateKeyPair: %v", err)
 		}
 
 		firstStep = false
 	}
+	return
+}
+
+func Keys(keyBitLen int) (pub *PublicKey, priv *PrivateKey, err error) {
+	pub, priv = &PublicKey{}, &PrivateKey{}
+
+	bKey := make([]byte, 1024)
+	bKey, err = storage.Load(fmt.Sprintf("publicKey%d.json", keyBitLen))
+	if err != nil {
+		return nil, nil, fmt.Errorf("rsa/Keys: %v", err)
+	}
+	err = json.Unmarshal(bKey, pub)
+	if err != nil {
+		return nil, nil, fmt.Errorf("rsa/Keys: %v", err)
+	}
+	bKey, err = storage.Load(fmt.Sprintf("privateKey%d.json", keyBitLen))
+	if err != nil {
+		return nil, nil, fmt.Errorf("rsa/Keys: %v", err)
+	}
+	err = json.Unmarshal(bKey, priv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("rsa/Keys: %v", err)
+	}
+
 	return
 }
 

@@ -8,7 +8,12 @@ import (
 )
 
 func main() {
-	publicKey, privateKey, err := rsa.GenerateKeyPair(1024)
+	err := rsa.GenerateKeyPair(1024)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey, privateKey, err := rsa.Keys(1024)
 	if err != nil {
 		log.Fatal(err)
 	}
